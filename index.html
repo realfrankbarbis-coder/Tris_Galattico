@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Galactic Tic-Tac-Toe</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #1e293b;
+            --panel-2: #334155;
+            --line: #475569;
+            --x: #38bdf8;
+            --o: #fb7185;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --gold: #fbbf24;
+            --radius: 12px;
+            --shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+            background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.1), transparent 40%),
+                        radial-gradient(circle at bottom right, rgba(251, 113, 133, 0.1), transparent 40%),
+                        var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
+            overflow: hidden;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(1.2rem, 3vw, 1.8rem);
+            background: linear-gradient(90deg, var(--x), var(--o));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: 0.75rem;
+            margin: 2px 0 8px;
+            text-align: center;
+        }
+
+        .top-bar {
+            width: min(95vw, 800px);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            z-index: 50;
+        }
+
+        .turn-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+
+        .turn-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--x);
+            box-shadow: 0 0 10px currentColor;
+        }
+        .turn-dot.o { background: var(--o); }
+        .turn-dot.gameover { background: var(--gold); }
+
+        .mode-toggle {
+            display: flex;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .mode-toggle button {
+            background: transparent;
+            border: none;
+            color: var(--muted);
+            padding: 6px 12px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-family: inherit;
+        }
+        .mode-toggle button.active { background: var(--panel-2); color: var(--text); }
+
+        .reset-btn {
+            background: linear-gradient(135deg, var(--x), #2563eb);
+            border: none;
+            color: #04111f;
+            font-weight: 800;
+            padding: 6px 14px;
+            border-radius: 999px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-family: inherit;
+        }
+
+        /* THE 729-CELL GRID */
+        .game-container {
+            position: relative;
+            width: min(95vw, 85vh);
+            aspect-ratio: 1 / 1;
+            background: #000;
+            border-radius: var(--radius);
+            padding: 2px;
+            box-shadow: var(--shadow);
+        }
+
+        .galactic-board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+            width: 100%;
+            height: 100%;
+            padding: 4px;
+            transition: opacity 0.3s ease;
+        }
+
+        /* Level 2: Super Board */
+        .super-board {
+            position: relative;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2px;
+            background: #1e293b;
+            padding: 2px;
+            border-radius: 4px;
+            transition: opacity 0.3s ease, filter 0.3s ease;
+        }
+
+        /* Level 1: Micro Board */
+        .micro-board {
+            position: relative;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1px;
+            background: #334155;
+            padding: 1px;
+            border-radius: 2px;
+            transition: opacity 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        /* Cells */
+        .cell {
+            position: relative;
+            aspect-ratio: 1 / 1;
+            background: #0b1220;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: clamp(6px, 1.5vmin, 18px);
+            border-radius: 1px;
+            transition: background 0.15s ease, transform 0.1s ease;
+        }
+
+        .cell.playable {
+            background: rgba(56, 189, 248, 0.2);
+            cursor: pointer;
+            box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.4);
+        }
+
+        .cell.playable:active {
+            background: rgba(56, 189, 248, 0.6);
+            transform: scale(0.85);
+        }
+
+        .cell.x { color: var(--x); text-shadow: 0 0 8px rgba(56, 189, 248, 0.6); }
+        .cell.o { color: var(--o); text-shadow: 0 0 8px rgba(251, 113, 133, 0.6); }
+
+        /* Dimming Logic */
+        .dimmed-super { opacity: 0.25; }
+        .dimmed-micro { opacity: 0.3; }
+        
+        /* Highlight the forced Micro board */
+        .active-target {
+            box-shadow: 0 0 8px var(--gold);
+            border: 1px solid var(--gold);
+            z-index: 10;
+            opacity: 1;
+        }
+        
+        /* WINNER OVERLAYS */
+        .micro-board.won-x::after, .micro-board.won-o::after {
+            content: ""; position: absolute; inset: 0; background: rgba(15, 23, 42, 0.85);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 900; z-index: 10; border-radius: 2px; pointer-events: none;
+        }
+        .micro-board.won-x::after { content: "X"; color: var(--x); font-size: clamp(10px, 3vmin, 24px); }
+        .micro-board.won-o::after { content: "O"; color: var(--o); font-size: clamp(10px, 3vmin, 24px); }
+
+        .super-board.won-x::after, .super-board.won-o::after {
+            content: ""; position: absolute; inset: 0; background: rgba(15, 23, 42, 0.9);
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 900; z-index: 20; border-radius: 4px; pointer-events: none;
+        }
+        .super-board.won-x::after { content: "X"; color: var(--x); font-size: clamp(30px, 10vmin, 80px); }
+        .super-board.won-o::after { content: "O"; color: var(--o); font-size: clamp(30px, 10vmin, 80px); }
+
+        /* Win Screen */
+        .overlay {
+            position: absolute; inset: 0; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 12px;
+            background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px); border-radius: var(--radius);
+            z-index: 100; text-align: center; padding: 20px;
+            opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
+        }
+        .overlay.show { opacity: 1; pointer-events: all; }
+        .overlay h2 { margin: 0; font-size: 2rem; }
+        .overlay button {
+            background: var(--gold); border: none; color: #1a1300;
+            font-weight: 800; padding: 12px 24px; border-radius: 999px;
+            font-size: 1rem; cursor: pointer; margin-top: 10px;
+            font-family: inherit;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Galactic Tic-Tac-Toe</h1>
+    <div class="subtitle">9 Super Boards. 729 Cells.</div>
+
+    <div class="top-bar">
+        <div class="turn-indicator">
+            <span class="turn-dot" id="turnDot"></span>
+            <span id="turnText">X's turn</span>
+        </div>
+
+        <div class="mode-toggle" id="modeToggle">
+            <button data-mode="pvp" class="active">2 Players</button>
+            <button data-mode="ai">vs AI</button>
+        </div>
+
+        <button class="reset-btn" id="resetBtn">Reset</button>
+    </div>
+
+    <div class="game-container" id="gameContainer">
+        <div class="overlay" id="overlay">
+            <h2 id="overlayTitle"></h2>
+            <button id="overlayBtn">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        (() => {
+            // 3D State Arrays: [Super][Micro][Cell]
+            let board = [];
+            let microWinners = [];
+            let superWinners = [];
+            let gameWinner = null;
+
+            let currentPlayer = 'X';
+            let gameOver = false;
+            let mode = 'pvp';
+            
+            // Forced Move Tracking
+            let activeSuper = null;
+            let activeMicro = null;
+
+            // DOM
+            const container = document.getElementById('gameContainer');
+            const turnDot = document.getElementById('turnDot');
+            const turnText = document.getElementById('turnText');
+            const overlay = document.getElementById('overlay');
+            const overlayTitle = document.getElementById('overlayTitle');
+            const overlayBtn = document.getElementById('overlayBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const modeButtons = document.querySelectorAll('.mode-toggle button');
+
+            let cellEls = [];
+            let microEls = [];
+            let superEls = [];
+            let galacticEl = null;
+
+            // ---------- INIT & BUILD ----------
+            function initState() {
+                board = Array(9).fill(null).map(() => 
+                    Array(9).fill(null).map(() => Array(9).fill(null)));
+                microWinners = Array(9).fill(null).map(() => Array(9).fill(null));
+                superWinners = Array(9).fill(null);
+            }
+
+            function buildDOM() {
+                const oldGalactic = document.getElementById('galacticBoard');
+                if (oldGalactic) oldGalactic.remove();
+                
+                cellEls = [];
+                microEls = [];
+                superEls = [];
+
+                galacticEl = document.createElement('div');
+                galacticEl.className = 'galactic-board';
+                galacticEl.id = 'galacticBoard';
+                
+                for (let S = 0; S < 9; S++) {
+                    const superGrid = document.createElement('div');
+                    superGrid.className = 'super-board';
+                    superEls.push(superGrid);
+                    
+                    const microRow = [];
+                    for (let m = 0; m < 9; m++) {
+                        const microGrid = document.createElement('div');
+                        microGrid.className = 'micro-board';
+                        
+                        const cellRow = [];
+                        for (let c = 0; c < 9; c++) {
+                            const cell = document.createElement('div');
+                            cell.className = 'cell';
+                            cell.dataset.S = S;
+                            cell.dataset.m = m;
+                            cell.dataset.c = c;
+                            cell.addEventListener('click', handleCellClick);
+                            
+                            cellRow.push(cell);
+                            microGrid.appendChild(cell);
+                        }
+                        microEls.push(microGrid);
+                        microRow.push(cellRow);
+                        superGrid.appendChild(microGrid);
+                    }
+                    cellEls.push(microRow);
+                    galacticEl.appendChild(superGrid);
+                }
+                container.insertBefore(galacticEl, overlay);
+            }
+
+            // ---------- LOGIC ----------
+            function checkWin3x3(arr) {
+                const lines = [
+                    [0,1,2], [3,4,5], [6,7,8], // rows
+                    [0,3,6], [1,4,7], [2,5,8], // cols
+                    [0,4,8], [2,4,6]           // diagonals
+                ];
+                for (let line of lines) {
+                    const [a, b, c] = line;
+                    if (arr[a] && arr[a] === arr[b] && arr[a] === arr[c]) return arr[a];
+                }
+                return null;
+            }
+
+            function isSuperFull(S) {
+                for (let m = 0; m < 9; m++) {
+                    if (microWinners[S][m] === null) {
+                        for (let c = 0; c < 9; c++) {
+                            if (!board[S][m][c]) return false;
+                        }
+                    }
+                }
+                return true;
+            }
+
+            function isMicroFull(S, m) {
+                for (let c = 0; c < 9; c++) {
+                    if (!board[S][m][c]) return false;
+                }
+                return true;
+            }
+
+            function getValidMoves() {
+                if (gameOver) return [];
+
+                let curSuper = activeSuper;
+                let curMicro = activeMicro;
+
+                // Validate Super fallback
+                if (curSuper !== null) {
+                    if (superWinners[curSuper] !== null || isSuperFull(curSuper)) {
+                        curSuper = null; curMicro = null;
+                    }
+                }
+                // Validate Micro fallback
+                if (curSuper !== null && curMicro !== null) {
+                    if (microWinners[curSuper][curMicro] !== null || isMicroFull(curSuper, curMicro)) {
+                        curMicro = null;
+                    }
+                }
+
+                const moves = [];
+                for (let S = 0; S < 9; S++) {
+                    if (curSuper !== null && S !== curSuper) continue;
+                    if (superWinners[S] !== null) continue;
+
+                    for (let m = 0; m < 9; m++) {
+                        if (curMicro !== null && m !== curMicro) continue;
+                        if (microWinners[S][m] !== null) continue;
+
+                        for (let c = 0; c < 9; c++) {
+                            if (!board[S][m][c]) {
+                                moves.push({ S, m, c });
+                            }
+                        }
+                    }
+                }
+                return moves;
+            }
+
+            function applyMove(S, m, c) {
+                board[S][m][c] = currentPlayer;
+
+                let justWonMicro = false;
+
+                // Check Micro Win
+                if (!microWinners[S][m]) {
+                    const mWinner = checkWin3x3(board[S][m]);
+                    if (mWinner) {
+                        microWinners[S][m] = mWinner;
+                        justWonMicro = true;
+
+                        // Check Super Win
+                        const sWinner = checkWin3x3(microWinners[S]);
+                        if (sWinner) {
+                            superWinners[S] = sWinner;
+
+                            // Check Galactic Win
+                            const gWinner = checkWin3x3(superWinners);
+                            if (gWinner) {
+                                gameOver = true;
+                                gameWinner = gWinner;
+                            }
+                        }
+                    }
+                }
+
+                // Check Draw
+                if (!gameOver && getValidMoves().length === 0) {
+                    gameOver = true;
+                    gameWinner = 'Draw';
+                }
+
+                // Set Forced Moves for next player
+                if (!gameOver) {
+                    if (justWonMicro) {
+                        // Winning a Micro board sends opponent to the corresponding Super board AND Micro board
+                        activeSuper = m;
+                        activeMicro = m;
+                    } else {
+                        // Normal play sends opponent to the same Super board, but corresponding Micro board
+                        activeSuper = S; 
+                        activeMicro = c; 
+                    }
+                }
+
+                currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                render();
+
+                if (mode === 'ai' && currentPlayer === 'O' && !gameOver) {
+                    setTimeout(aiMove, 100);
+                }
+            }
+
+            // ---------- RENDERING ----------
+            function render() {
+                const moves = getValidMoves();
+                const validKeys = new Set(moves.map(mv => `${mv.S},${mv.m},${mv.c}`));
+
+                let curSuper = activeSuper;
+                let curMicro = activeMicro;
+
+                // Fallbacks for dimming display
+                if (curSuper !== null && (superWinners[curSuper] !== null || isSuperFull(curSuper))) {
+                    curSuper = null; curMicro = null;
+                }
+                if (curSuper !== null && curMicro !== null && (microWinners[curSuper][curMicro] !== null || isMicroFull(curSuper, curMicro))) {
+                    curMicro = null;
+                }
+
+                // Render Cells
+                for (let S = 0; S < 9; S++) {
+                    for (let m = 0; m < 9; m++) {
+                        for (let c = 0; c < 9; c++) {
+                            const val = board[S][m][c];
+                            const cellEl = cellEls[S][m][c];
+                            
+                            cellEl.textContent = val || '';
+                            cellEl.className = 'cell';
+                            if (val === 'X') cellEl.classList.add('x');
+                            if (val === 'O') cellEl.classList.add('o');
+                            if (!val && validKeys.has(`${S},${m},${c}`)) {
+                                cellEl.classList.add('playable');
+                            }
+                        }
+                    }
+                }
+
+                // Reset all dimming/highlights
+                for (let S = 0; S < 9; S++) {
+                    superEls[S].className = 'super-board';
+                    if (superWinners[S] === 'X') superEls[S].classList.add('won-x');
+                    if (superWinners[S] === 'O') superEls[S].classList.add('won-o');
+
+                    for (let m = 0; m < 9; m++) {
+                        const microEl = microEls[S * 9 + m];
+                        microEl.className = 'micro-board';
+                        if (microWinners[S][m] === 'X') microEl.classList.add('won-x');
+                        if (microWinners[S][m] === 'O') microEl.classList.add('won-o');
+                    }
+                }
+
+                // Apply dimming and targeting
+                for (let S = 0; S < 9; S++) {
+                    if (curSuper !== null && S !== curSuper) {
+                        superEls[S].classList.add('dimmed-super');
+                    }
+                    
+                    if (curSuper === null || S === curSuper) {
+                        for (let m = 0; m < 9; m++) {
+                            const microEl = microEls[S * 9 + m];
+                            if (curMicro !== null) {
+                                if (m === curMicro) {
+                                    microEl.classList.add('active-target');
+                                } else {
+                                    microEl.classList.add('dimmed-micro');
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // UI Updates
+                turnDot.className = 'turn-dot';
+                if (gameOver) {
+                    turnDot.classList.add('gameover');
+                    turnText.textContent = 'Game over';
+                    overlay.classList.add('show');
+                    overlayTitle.textContent = gameWinner === 'Draw' ? "Galactic Draw!" : `${gameWinner} conquers the Galaxy!`;
+                } else {
+                    turnDot.classList.toggle('o', currentPlayer === 'O');
+                    turnText.textContent = `${currentPlayer}'s turn`;
+                    overlay.classList.remove('show');
+                }
+            }
+
+            // ---------- INTERACTIVITY ----------
+            function handleCellClick(e) {
+                if (gameOver || (mode === 'ai' && currentPlayer === 'O')) return;
+                const d = e.currentTarget.dataset;
+                
+                const moves = getValidMoves();
+                const isValid = moves.some(m => 
+                    m.S == d.S && m.m == d.m && m.c == d.c
+                );
+                if (!isValid) return;
+
+                applyMove(+d.S, +d.m, +d.c);
+            }
+
+            // ---------- AI ----------
+            function aiMove() {
+                const moves = getValidMoves();
+                if (moves.length === 0) return;
+
+                // 1. Win a micro board
+                for (let m of moves) {
+                    board[m.S][m.m][m.c] = 'O';
+                    const w = checkWin3x3(board[m.S][m.m]);
+                    board[m.S][m.m][m.c] = null;
+                    if (w === 'O') return applyMove(m.S, m.m, m.c);
+                }
+
+                // 2. Block opponent micro win
+                for (let m of moves) {
+                    board[m.S][m.m][m.c] = 'X';
+                    const w = checkWin3x3(board[m.S][m.m]);
+                    board[m.S][m.m][m.c] = null;
+                    if (w === 'X') return applyMove(m.S, m.m, m.c);
+                }
+
+                // 3. Random
+                const rand = moves[Math.floor(Math.random() * moves.length)];
+                applyMove(rand.S, rand.m, rand.c);
+            }
+
+            // ---------- RESET ----------
+            function resetGame() {
+                initState();
+                currentPlayer = 'X';
+                gameOver = false;
+                gameWinner = null;
+                activeSuper = null;
+                activeMicro = null;
+                overlay.classList.remove('show');
+                
+                if (!galacticEl) buildDOM();
+                render();
+            }
+
+            modeButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    modeButtons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    mode = btn.dataset.mode;
+                    resetGame();
+                });
+            });
+
+            resetBtn.addEventListener('click', resetGame);
+            overlayBtn.addEventListener('click', resetGame);
+
+            // Start
+            initState();
+            buildDOM();
+            render();
+        })();
+    </script>
+</body>
+</html>
